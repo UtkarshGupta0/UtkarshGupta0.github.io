@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	--color-bg: #ffffff;
+	--color-fg: #0b1221;
+}
+
+html, body, #__next {
+	height: 100%;
+}
+
+body {
+	background: var(--color-bg);
+	color: var(--color-fg);
+}

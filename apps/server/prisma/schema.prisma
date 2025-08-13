@@ -1,0 +1,303 @@
+// datasource and generator
+generator client {
+	provider = "prisma-client-js"
+}
+
+datasource db {
+	provider = "postgresql"
+	url      = env("DATABASE_URL")
+}
+
+model User {
+	id                 String   @id @default(cuid())
+	email              String   @unique
+	emailVerifiedAt    DateTime?
+	passwordHash       String?
+	name               String
+	campus             Campus
+	graduationYear     Int?
+	degreeProgram      String?
+	profileImageUrl    String?
+	isTwoFactorEnabled Boolean  @default(false)
+	phoneE164          String?  @unique
+	phoneVerifiedAt    DateTime?
+	isActive           Boolean  @default(true)
+	failedLoginAttempts Int     @default(0)
+	lastLoginAttemptAt DateTime?
+	role               UserRole @default(STUDENT)
+	createdAt          DateTime @default(now())
+	updatedAt          DateTime @updatedAt
+
+	// relations
+	reviews       Review[]
+	bookmarks     Bookmark[]
+	sessions      Session[]
+	verifications EmailVerification[]
+	reactions     ReviewReaction[]
+	comments      ReviewComment[]
+	actedAuditLogs AuditLog[] @relation("AuditLogActor")
+	twoFactorCodes TwoFactorCode[]
+	reviewFlags    ReviewFlag[] @relation("ReviewFlagReporter")
+}
+
+model Session {
+	id        String   @id @default(cuid())
+	user      User     @relation(fields: [userId], references: [id])
+	userId    String
+	createdAt DateTime @default(now())
+	expiresAt DateTime
+	ipHash    String
+	userAgent String
+}
+
+model EmailVerification {
+	id           String   @id @default(cuid())
+	user         User     @relation(fields: [userId], references: [id])
+	userId       String
+	token        String   @unique
+	expiresAt    DateTime
+	createdAt    DateTime @default(now())
+	purpose      VerificationPurpose
+}
+
+enum VerificationPurpose {
+	SIGNUP
+	ANNUAL_REVERIFY
+	PASSWORD_RESET
+	LOGIN_2FA
+}
+
+enum UserRole {
+	STUDENT
+	ADMIN
+	MODERATOR
+}
+
+enum Campus {
+	PILANI
+	GOA
+	HYDERABAD
+	DUBAI
+}
+
+model Professor {
+	id            String      @id @default(cuid())
+	firstName     String
+	lastName      String
+	fullName      String      @unique
+	department    String
+	campus        Campus
+	officeLocation String?
+	phone          String?
+	email          String?
+	photoUrl       String?
+	degrees        String[]
+	researchAreas  String[]
+	publicationsCount Int      @default(0)
+	yearsAtBits    Int? 
+	officeHours    String?
+	awards         String[]
+	researchInterests String[]
+	currentProjects  String[]
+	linkedinUrl    String?
+	researchGateUrl String?
+	createdAt      DateTime @default(now())
+	updatedAt      DateTime @updatedAt
+
+	// relations
+	courses      CourseOffering[]
+	reviews      Review[]
+	tags         ProfessorTag[]
+	bookmarks    Bookmark[]
+}
+
+model Course {
+	id           String   @id @default(cuid())
+	code         String   @unique
+	name         String
+	description  String?
+	prerequisites String[]
+	creditHours  Int
+	isLab        Boolean  @default(false)
+	isTutorial   Boolean  @default(false)
+	materialRequirements String[]
+	createdAt    DateTime @default(now())
+	updatedAt    DateTime @updatedAt
+
+	// relations
+	offerings CourseOffering[]
+}
+
+model CourseOffering {
+	id          String    @id @default(cuid())
+	course      Course    @relation(fields: [courseId], references: [id])
+	courseId    String
+	professor   Professor @relation(fields: [professorId], references: [id])
+	professorId String
+	semester    String
+	year        Int
+	classSize   Int?
+	createdAt   DateTime @default(now())
+
+	reviews Review[]
+}
+
+model Review {
+	id              String   @id @default(cuid())
+	user            User     @relation(fields: [userId], references: [id])
+	userId          String
+	professor       Professor @relation(fields: [professorId], references: [id])
+	professorId     String
+	courseOffering  CourseOffering? @relation(fields: [courseOfferingId], references: [id])
+	courseOfferingId String?
+	overallQuality  Int
+	teachingClarity Int
+	helpfulness     Int
+	courseDifficulty Difficulty
+	gradingFairness Int
+	engagementLevel Int
+	courseOrganization Int
+	technologyUse   Int
+	gradeReceived   String?
+	attendanceRequired Boolean?
+	textbookUsage   Int?
+	assignmentLoad  Int?
+	examDifficulty  Int?
+	extraCredit     Boolean?
+	isAnonymous     Boolean  @default(false)
+	content         String
+	photos          String[]
+	audioUrl        String?
+	videoUrl        String?
+	wouldTakeAgain  Boolean?
+	createdAt       DateTime @default(now())
+	updatedAt       DateTime @updatedAt
+	isEdited        Boolean  @default(false)
+	status          ReviewStatus @default(PUBLISHED)
+
+	// interactions
+	reactions ReviewReaction[]
+	comments  ReviewComment[]
+	flags     ReviewFlag[]
+}
+
+enum ReviewStatus {
+	PUBLISHED
+	PENDING
+	REJECTED
+	FLAGGED
+}
+
+enum Difficulty {
+	EASY
+	MODERATE
+	HARD
+}
+
+model ReviewReaction {
+	id        String   @id @default(cuid())
+	review    Review   @relation(fields: [reviewId], references: [id])
+	reviewId  String
+	user      User     @relation(fields: [userId], references: [id])
+	userId    String
+	type      ReactionType
+	createdAt DateTime @default(now())
+
+	@@unique([reviewId, userId])
+}
+
+enum ReactionType {
+	UPVOTE
+	DOWNVOTE
+	EMOJI_LIKE
+	EMOJI_THINKING
+	EMOJI_CELEBRATE
+}
+
+model ReviewComment {
+	id        String   @id @default(cuid())
+	review    Review   @relation(fields: [reviewId], references: [id])
+	reviewId  String
+	user      User     @relation(fields: [userId], references: [id])
+	userId    String
+	content   String
+	parentId  String?
+	createdAt DateTime @default(now())
+}
+
+model Tag {
+	id        String   @id @default(cuid())
+	name      String   @unique
+	category  TagCategory
+	isApproved Boolean @default(false)
+	isCampusSpecific Boolean @default(false)
+	createdAt DateTime @default(now())
+
+	// relation
+	professorTags ProfessorTag[]
+}
+
+enum TagCategory {
+	TEACHING_STYLE
+	PERSONALITY
+	ASSESSMENT
+	COURSE_MANAGEMENT
+	TECHNOLOGY_USE
+	AVAILABILITY
+	COURSE_LOAD
+	INNOVATION
+}
+
+model ProfessorTag {
+	professor   Professor @relation(fields: [professorId], references: [id])
+	professorId String
+	tag         Tag       @relation(fields: [tagId], references: [id])
+	tagId       String
+	count       Int       @default(1)
+
+	@@id([professorId, tagId])
+}
+
+model Bookmark {
+	id          String   @id @default(cuid())
+	user        User     @relation(fields: [userId], references: [id])
+	userId      String
+	professor   Professor @relation(fields: [professorId], references: [id])
+	professorId String
+	createdAt   DateTime @default(now())
+
+	@@unique([userId, professorId])
+}
+
+model AuditLog {
+	id        String   @id @default(cuid())
+	actorId   String?
+	actor     User?    @relation("AuditLogActor", fields: [actorId], references: [id])
+	action    String
+	entity    String
+	entityId  String?
+	ipHash    String?
+	meta      Json?
+	createdAt DateTime @default(now())
+}
+
+model ReviewFlag {
+	id         String   @id @default(cuid())
+	review     Review   @relation(fields: [reviewId], references: [id])
+	reviewId   String
+	reporter   User     @relation("ReviewFlagReporter", fields: [reporterId], references: [id])
+	reporterId String
+	reason     String
+	createdAt  DateTime @default(now())
+}
+
+model TwoFactorCode {
+	id        String   @id @default(cuid())
+	user      User     @relation(fields: [userId], references: [id])
+	userId    String
+	code      String
+	expiresAt DateTime
+	createdAt DateTime @default(now())
+
+	@@index([userId])
+}
